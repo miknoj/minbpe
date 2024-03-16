@@ -13,15 +13,21 @@ text = open("tests/taylorswift.txt", "r", encoding="utf-8").read()
 # create a directory for models, so we don't pollute the current directory
 os.makedirs("models", exist_ok=True)
 
-t0 = time.time()
-for TokenizerClass, name in zip([BasicTokenizer, RegexTokenizer], ["basic", "regex"]):
+trained_tokenizers = {}
 
+t0 = time.time()
+for TokenizerClass, name in zip([BasicTokenizer, RegexTokenizer, BasicTokenizer], ["basic", "regex", "basic_re"]):
     # construct the Tokenizer object and kick off verbose training
-    tokenizer = TokenizerClass()
+    tokenizer = TokenizerClass(regex=True) if name == "basic_re" else TokenizerClass()
     tokenizer.train(text, 512, verbose=True)
     # writes two files in the models directory: name.model, and name.vocab
     prefix = os.path.join("models", name)
     tokenizer.save(prefix)
+    trained_tokenizers[name] = tokenizer
 t1 = time.time()
 
 print(f"Training took {t1 - t0:.2f} seconds")
+test_text = "hello123!!!? (안녕하세요!) 😉"
+print(f"basic tokenizer encode '{test_text}' is {trained_tokenizers['basic'].encode(test_text)}")
+print(f"regex tokenizer encode '{test_text}' is {trained_tokenizers['regex'].encode(test_text)}")
+print(f"basic re tokenizer encode '{test_text}' is {trained_tokenizers['basic_re'].encode(test_text)}")
