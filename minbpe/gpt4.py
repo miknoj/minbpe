@@ -22,7 +22,11 @@ def bpe(mergeable_ranks, token, max_rank):
         if min_rank is None or (max_rank is not None and min_rank >= max_rank):
             break
         assert min_idx is not None
-        parts = parts[:min_idx] + [parts[min_idx] + parts[min_idx + 1]] + parts[min_idx + 2:]
+        parts = (
+            parts[:min_idx]
+            + [parts[min_idx] + parts[min_idx + 1]]
+            + parts[min_idx + 2 :]
+        )
     return parts
 
 
@@ -35,7 +39,7 @@ def recover_merges(mergeable_ranks):
     merges = {}
     for token, rank in mergeable_ranks.items():
         if len(token) == 1:
-            continue # skip raw bytes
+            continue  # skip raw bytes
         pair = tuple(bpe(mergeable_ranks, token, max_rank=rank))
         assert len(pair) == 2
         # recover the integer ranks of the pair
@@ -45,14 +49,16 @@ def recover_merges(mergeable_ranks):
 
     return merges
 
+
 GPT4_SPLIT_PATTERN = r"""'(?i:[sdmt]|ll|ve|re)|[^\r\n\p{L}\p{N}]?+\p{L}+|\p{N}{1,3}| ?[^\s\p{L}\p{N}]++[\r\n]*|\s*[\r\n]|\s+(?!\S)|\s+"""
 GPT4_SPECIAL_TOKENS = {
-    '<|endoftext|>': 100257,
-    '<|fim_prefix|>': 100258,
-    '<|fim_middle|>': 100259,
-    '<|fim_suffix|>': 100260,
-    '<|endofprompt|>': 100276
+    "<|endoftext|>": 100257,
+    "<|fim_prefix|>": 100258,
+    "<|fim_middle|>": 100259,
+    "<|fim_suffix|>": 100260,
+    "<|endofprompt|>": 100276,
 }
+
 
 class GPT4Tokenizer(RegexTokenizer):
     """Lightweight wrapper on RegexTokenizer that matches GPT-4's tokenizer."""
@@ -112,6 +118,7 @@ class GPT4Tokenizer(RegexTokenizer):
         # simple run as:
         # python -c "from minbpe import GPT4Tokenizer; GPT4Tokenizer().save_vocab('gpt4.vocab')"
         from .base import render_token
+
         # build vocab being mindful of the byte shuffle
         vocab = {idx: bytes([self.inverse_byte_shuffle[idx]]) for idx in range(256)}
         for (p0, p1), idx in self.merges.items():
