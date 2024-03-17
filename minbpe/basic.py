@@ -8,15 +8,17 @@ But:
 - Does not handle the regular expression splitting pattern.
 - Does not handle any special tokens.
 """
+import cython
 
 from .base import Tokenizer, get_stats, merge
+from typing import List
 
 
 class BasicTokenizer(Tokenizer):
     def __init__(self):
         super().__init__()
 
-    def train(self, text, vocab_size, verbose=False):
+    def train(self, text: str, vocab_size: cython.int, verbose: bool = False):
         assert vocab_size >= 256
         num_merges = vocab_size - 256
 
@@ -49,13 +51,13 @@ class BasicTokenizer(Tokenizer):
         self.merges = merges  # used in encode()
         self.vocab = vocab  # used in decode()
 
-    def decode(self, ids):
+    def decode(self, ids: List[cython.int]):
         # given ids (list of integers), return Python string
         text_bytes = b"".join(self.vocab[idx] for idx in ids)
         text = text_bytes.decode("utf-8", errors="replace")
         return text
 
-    def encode(self, text):
+    def encode(self, text: str):
         # given a string text, return the token ids
         text_bytes = text.encode("utf-8")  # raw bytes
         ids = list(text_bytes)  # list of integers in range 0..255

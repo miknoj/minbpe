@@ -6,3 +6,7 @@ models/**/*
 *.vocab
 
 .vscode
+build/
+*.so
+*.c
+*.cpp

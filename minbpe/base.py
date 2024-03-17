@@ -5,13 +5,21 @@ It would be possible to be a lot more strict about the interface and
 e.g. isolating all regex/pattern parts to the RegexTokenizer, but
 some concessions are made for simplicity.
 """
+import cython
 import unicodedata
+
+from cython.cimports.libcpp.vector import vector
+from typing import List, Dict, Optional, Tuple
 
 # -----------------------------------------------------------------------------
 # a few helper functions useful for both BasicTokenizer and RegexTokenizer
 
 
-def get_stats(ids, counts=None):
+@cython.ccall
+def get_stats(
+    ids: List[cython.int],
+    counts: Optional[Dict[Tuple[cython.int, cython.int], cython.int]] = None,
+):
     """
     Given a list of integers, return a dictionary of counts of consecutive pairs
     Example: [1, 2, 3, 1, 2] -> {(1, 2): 2, (2, 3): 1, (3, 1): 1}
@@ -23,26 +31,29 @@ def get_stats(ids, counts=None):
     return counts
 
 
-def merge(ids, pair, idx):
+@cython.ccall
+def merge(ids: List[cython.int], pair: Tuple[cython.int, cython.int], idx: cython.int):
     """
     In the list of integers (ids), replace all consecutive occurrences
     of pair with the new integer token idx
     Example: ids=[1, 2, 3, 1, 2], pair=(1, 2), idx=4 -> [4, 3, 4]
     """
-    newids = []
+    newids: vector[cython.int]
+    newids.reserve(len(ids))
     i = 0
     while i < len(ids):
         # if not at the very last position AND the pair matches, replace it
         if ids[i] == pair[0] and i < len(ids) - 1 and ids[i + 1] == pair[1]:
-            newids.append(idx)
+            newids.push_back(idx)
             i += 2
         else:
-            newids.append(ids[i])
+            newids.push_back(ids[i])
             i += 1
     return newids
 
 
 # first two helper functions...
+@cython.ccall
 def replace_control_characters(s: str) -> str:
     # we don't want to print control characters
     # which distort the output (e.g. \n or much worse)
@@ -68,6 +79,7 @@ def render_token(t: bytes) -> str:
 # the base Tokenizer class
 
 
+@cython.cclass
 class Tokenizer:
     """Base class for Tokenizers"""
 
@@ -78,18 +90,22 @@ class Tokenizer:
         self.special_tokens = {}  # str -> int, e.g. {'<|endoftext|>': 100257}
         self.vocab = self._build_vocab()  # int -> bytes
 
-    def train(self, text, vocab_size, verbose=False):
+    @cython.ccall
+    def train(self, text: str, vocab_size: cython.int, verbose: bool = False):
         # Tokenizer can train a vocabulary of size vocab_size from text
         raise NotImplementedError
 
-    def encode(self, text):
+    @cython.ccall
+    def encode(self, text: str):
         # Tokenizer can encode a string into a list of integers
         raise NotImplementedError
 
-    def decode(self, ids):
+    @cython.ccall
+    def decode(self, ids: str):
         # Tokenizer can decode a list of integers into a string
         raise NotImplementedError
 
+    @cython.ccall
     def _build_vocab(self):
         # vocab is simply and deterministically derived from merges
         vocab = {idx: bytes([idx]) for idx in range(256)}
@@ -99,7 +115,8 @@ class Tokenizer:
             vocab[idx] = special.encode("utf-8")
         return vocab
 
-    def save(self, file_prefix):
+    @cython.ccall
+    def save(self, file_prefix: str):
         """
         Saves two files: file_prefix.vocab and file_prefix.model
         This is inspired (but not equivalent to!) sentencepiece's model saving:
@@ -142,7 +159,8 @@ class Tokenizer:
                     # (this should just be the first 256 tokens, the bytes)
                     f.write(f"[{s}] {idx}\n")
 
-    def load(self, model_file):
+    @cython.ccall
+    def load(self, model_file: str):
         """Inverse of save() but only for the model file"""
         assert model_file.endswith(".model")
         # read the model file
